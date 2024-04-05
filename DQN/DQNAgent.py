@@ -14,18 +14,14 @@ class Agent:
     Args:
         in_channels (int): Number of input channels.
         num_actions (int): Number of possible actions.
-        c (float): Exploration factor for epsilon-greedy action selection.
         lr (float): Learning rate for the optimizer.
-        alpha (float): RMSprop optimizer alpha value.
         gamma (float): Discount factor for future rewards.
         epsilon (float): Exploration rate for epsilon-greedy action selection.
         replay_size (int): Size of the replay buffer.
 
     Attributes:
         num_actions (int): Number of possible actions.
-        replay (ReplayBuffer): Replay buffer for storing and sampling experiences.
         device (torch.device): Device (CPU or GPU) for running computations.
-        c (float): Exploration factor for epsilon-greedy action selection.
         gamma (float): Discount factor for future rewards.
         q_network (DQN): Q-network for estimating action values.
         target_network (DQN): Target network for estimating target action values.
@@ -38,7 +34,7 @@ class Agent:
         learn(batch_size): Performs a single learning step using a batch of experiences.
     """
 
-    def __init__(self, in_channels, num_actions, reset_network_interval, lr, alpha, gamma, epsilon, replay_size):
+    def __init__(self, in_channels, num_actions, reset_network_interval, lr, gamma, epsilon, replay_size):
         self.num_actions = num_actions
         self.replay_buffer = ReplayBuffer(replay_size)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -87,7 +83,10 @@ class Agent:
         tmp = self.q_network(states)
         rewards = rewards.to(self.device)
         q_values = tmp[range(states.shape[0]), actions.long()]
-        default = rewards + self.gamma * self.target_network(next_states).max(dim=1)[0]
+        q_predict_action = self.q_network(next_states).detach().argmax(1)
+        target_output = self.gamma * self.target_network(next_states)
+        target_output = target_output[::, q_predict_action]
+        default = rewards + target_output
         target = torch.where(dones.to(self.device), rewards, default).to(self.device).detach()
         return F.mse_loss(target, q_values)
 
