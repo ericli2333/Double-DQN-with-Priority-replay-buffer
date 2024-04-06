@@ -83,9 +83,10 @@ class Agent:
         tmp = self.q_network(states)
         rewards = rewards.to(self.device)
         q_values = tmp[range(states.shape[0]), actions.long()]
-        q_predict_action = self.q_network(next_states).detach().argmax(1)
+        q_predict_action_output = self.q_network(next_states).detach()
+        q_predict_action = q_predict_action_output.argmax(dim=1)
         target_output = self.gamma * self.target_network(next_states)
-        target_output = target_output[::, q_predict_action]
+        target_output = target_output[range(states.shape[0]), q_predict_action]
         default = rewards + target_output
         target = torch.where(dones.to(self.device), rewards, default).to(self.device).detach()
         return F.mse_loss(target, q_values)

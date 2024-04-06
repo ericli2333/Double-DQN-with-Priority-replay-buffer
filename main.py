@@ -36,9 +36,9 @@ def train(env_name='PongNoFrameskip-v4', learning_rate=3e-4, gamma=0.99, memory_
     Reward = []
     episodes = 0
     current_time = datetime.now()
-    formatted_time = current_time.strftime("%Y %m %d %H %M %S")
+    formatted_time = current_time.strftime("%Y-%m-%d %H:%M:%S")
     writer = SummaryWriter(
-        log_dir=f'./logs/{formatted_time}-env{env_name}-lr{learning_rate}-gamma{gamma}-memory_size{memory_size}-total_frame{total_frame}-max_eps{epsilon_begin}-min_eps{epsilon_end}-eps_decay{epsilon_decay}')
+        log_dir=f'./logs/{formatted_time}-env{env_name}-gamma{gamma}-memory_size{memory_size}-max_eps{epsilon_begin}-min_eps{epsilon_end}-eps_decay{epsilon_decay}')
 
     for frame_num in range(total_frame):
         eps = epsilon(frame_num)
