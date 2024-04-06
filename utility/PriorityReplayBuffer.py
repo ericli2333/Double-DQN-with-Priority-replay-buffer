@@ -8,19 +8,22 @@ class Transition(object):
         self.index = index
 
     def __lt__(self, other):
-        return self.priority < other.priority
+        return self.priority > other.priority
 
     def __gt__(self, other):
-        return self.priority > other.priority
+        return self.priority < other.priority
 
 
 class MPriorityQueue:
-    def __init__(self):
+    def __init__(self, max_size=10000):
         self.heap = []
+        self.max_size = max_size
 
     def push(self, item):
         self.heap.append(item)
         self._heapify_up(len(self.heap) - 1)
+        while (len(self.heap) > self.max_size):
+            self.pop()
 
     def pop(self):
         if len(self.heap) == 0:
@@ -91,7 +94,7 @@ class PriorityReplayBuffer:
         self.cur = 0
         self.max_priority = 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.q = MPriorityQueue()
+        self.q = MPriorityQueue(max_size=size)
 
     def __len__(self):
         return len(self.buffer)
