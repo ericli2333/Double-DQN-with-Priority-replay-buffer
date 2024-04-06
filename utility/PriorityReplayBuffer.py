@@ -8,10 +8,10 @@ class Transition(object):
         self.index = index
 
     def __lt__(self, other):
-        return self.priority > other.priority
+        return self.priority < other.priority
 
     def __gt__(self, other):
-        return self.priority < other.priority
+        return self.priority > other.priority
 
 
 class MPriorityQueue:
