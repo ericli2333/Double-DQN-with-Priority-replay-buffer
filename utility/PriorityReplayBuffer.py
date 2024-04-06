@@ -1,8 +1,63 @@
 import random
 import torch
+import queue
 
 
-class ReplayBuffer:
+class MPriorityQueue:
+    def __init__(self):
+        self.heap = []
+
+    def push(self, item):
+        self.heap.append(item)
+        self._heapify_up(len(self.heap) - 1)
+
+    def pop(self):
+        if len(self.heap) == 0:
+            return None
+        if len(self.heap) == 1:
+            return self.heap.pop()
+        root = self.heap[0]
+        self.heap[0] = self.heap.pop()
+        self._heapify_down(0)
+        return root
+
+    def _heapify_up(self, index):
+        parent_index = (index - 1) // 2
+        if index > 0 and self.heap[index] > self.heap[parent_index]:  # 自定义对象的比较关系
+            self.heap[index], self.heap[parent_index] = self.heap[parent_index], self.heap[index]
+            self._heapify_up(parent_index)
+
+    def _heapify_down(self, index):
+        left_child_index = 2 * index + 1
+        right_child_index = 2 * index + 2
+        largest = index
+
+        if (left_child_index < len(self.heap) and
+                self.heap[left_child_index] > self.heap[largest]):
+            largest = left_child_index
+
+        if (right_child_index < len(self.heap) and
+                self.heap[right_child_index] > self.heap[largest]):
+            largest = right_child_index
+
+        if largest != index:
+            self.heap[index], self.heap[largest] = self.heap[largest], self.heap[index]
+            self._heapify_down(largest)
+
+
+class Transition(object):
+    def __init__(self, priority=0, index=0):
+        self.priority = priority
+        self.index = index
+
+    def __lt__(self, other):
+        return self.priority < other.priority
+
+    def __gt__(self, other):
+        return self.priority > other.priority
+
+
+class PriorityReplayBuffer:
     """
     A replay buffer class for storing and sampling experiences for reinforcement learning.
 
@@ -27,7 +82,9 @@ class ReplayBuffer:
         self.size = size
         self.buffer = []
         self.cur = 0
+        self.max_priority = 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.q = MPriorityQueue()
 
     def __len__(self):
         return len(self.buffer)
@@ -36,7 +93,7 @@ class ReplayBuffer:
         state = torch.from_numpy(lazy_frame.__array__()[None] / 255).float()
         return state.to(self.device)
 
-    def push(self, state, action, reward, next_state, done):
+    def push(self, td_error, state, action, reward, next_state, done):
         """
         Adds an experience to the replay buffer.
 
@@ -48,11 +105,18 @@ class ReplayBuffer:
             done (bool): Whether the episode is done.
 
         """
+        trans = Transition(priority=td_error, index=self.cur)
+        self.q.push(trans)
+
         if len(self.buffer) == self.size:
             self.buffer[self.cur] = (state, action, reward, next_state, done)
         else:
             self.buffer.append((state, action, reward, next_state, done))
         self.cur = (self.cur + 1) % self.size
+
+    def _get_index(self, batch_size):
+        weight = [1 / (i + 1) for i in range(len(self.q.heap))]
+        return random.choices(self.q.heap, weight, k=batch_size)
 
     def sample(self, batch_size):
         """
@@ -66,8 +130,8 @@ class ReplayBuffer:
 
         """
         states, actions, rewards, next_states, dones = [], [], [], [], []
-        for _ in range(batch_size):
-            frame, action, reward, next_frame, done = self.buffer[random.randint(0, len(self.buffer) - 1)]
+        for index in self._get_index(batch_size):
+            frame, action, reward, next_frame, done = self.buffer[index.index]
             state = self.transform(frame)
             next_state = self.transform(next_frame)
             state = torch.squeeze(state, 0)
