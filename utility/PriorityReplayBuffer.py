@@ -1,6 +1,17 @@
 import random
 import torch
-import queue
+
+
+class Transition(object):
+    def __init__(self, priority=0, index=0):
+        self.priority = priority
+        self.index = index
+
+    def __lt__(self, other):
+        return self.priority < other.priority
+
+    def __gt__(self, other):
+        return self.priority > other.priority
 
 
 class MPriorityQueue:
@@ -20,6 +31,14 @@ class MPriorityQueue:
         self.heap[0] = self.heap.pop()
         self._heapify_down(0)
         return root
+
+    def update_key(self, index: int, new_key):
+        if index < 0 or index >= len(self.heap):
+            return
+        old_key = self.heap[index].priority
+        self.heap[index].priority = new_key
+        if new_key > old_key:
+            self._heapify_down(index)
 
     def _heapify_up(self, index):
         parent_index = (index - 1) // 2
@@ -43,18 +62,6 @@ class MPriorityQueue:
         if largest != index:
             self.heap[index], self.heap[largest] = self.heap[largest], self.heap[index]
             self._heapify_down(largest)
-
-
-class Transition(object):
-    def __init__(self, priority=0, index=0):
-        self.priority = priority
-        self.index = index
-
-    def __lt__(self, other):
-        return self.priority < other.priority
-
-    def __gt__(self, other):
-        return self.priority > other.priority
 
 
 class PriorityReplayBuffer:
@@ -93,7 +100,7 @@ class PriorityReplayBuffer:
         state = torch.from_numpy(lazy_frame.__array__()[None] / 255).float()
         return state.to(self.device)
 
-    def push(self, td_error, state, action, reward, next_state, done):
+    def push(self, state, action, reward, next_state, done):
         """
         Adds an experience to the replay buffer.
 
@@ -105,20 +112,17 @@ class PriorityReplayBuffer:
             done (bool): Whether the episode is done.
 
         """
-        trans = Transition(priority=td_error, index=self.cur)
+        trans = Transition(priority=self.max_priority + 1, index=self.cur)
+        self.max_priority += 1
         self.q.push(trans)
+        self.buffer.append((state, action, reward, next_state, done))
+        self.cur += 1
 
-        if len(self.buffer) == self.size:
-            self.buffer[self.cur] = (state, action, reward, next_state, done)
-        else:
-            self.buffer.append((state, action, reward, next_state, done))
-        self.cur = (self.cur + 1) % self.size
-
-    def _get_index(self, batch_size):
+    def get_index(self, batch_size):
         weight = [1 / (i + 1) for i in range(len(self.q.heap))]
-        return random.choices(self.q.heap, weight, k=batch_size)
+        return random.choices([i for i in range(len(self.q.heap))], weight, k=batch_size)
 
-    def sample(self, batch_size):
+    def sample(self, batch_size, index):
         """
         Samples a batch of experiences from the replay buffer.
 
@@ -130,8 +134,8 @@ class PriorityReplayBuffer:
 
         """
         states, actions, rewards, next_states, dones = [], [], [], [], []
-        for index in self._get_index(batch_size):
-            frame, action, reward, next_frame, done = self.buffer[index.index]
+        for idx in index:
+            frame, action, reward, next_frame, done = self.buffer[self.q.heap[idx].index]
             state = self.transform(frame)
             next_state = self.transform(next_frame)
             state = torch.squeeze(state, 0)
@@ -144,3 +148,11 @@ class PriorityReplayBuffer:
         return (torch.stack(states).to(self.device), torch.tensor(actions).to(self.device),
                 torch.tensor(rewards).to(self.device),
                 torch.stack(next_states).to(self.device), torch.tensor(dones).to(self.device))
+
+    def _update_priority(self, index, td_error):
+        self.q.update_key(index, td_error)
+        self.max_priority = max(self.max_priority, td_error)
+
+    def update_priority(self, index, td_error):
+        for idx, err in zip(index, td_error):
+            self._update_priority(idx, err)

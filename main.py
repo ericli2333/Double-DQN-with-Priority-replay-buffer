@@ -2,7 +2,7 @@ import argparse
 from utility.EnvConfig import make_env
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-import DQN.DQNAgent as AG
+import DQN.DQNAgent_prioritized as AG
 import math
 import torch
 from datetime import datetime
@@ -17,6 +17,7 @@ alpha = 0.95
 replay_start_size = 10000
 update = 1000
 print_interval = 1000
+showlog = False
 
 
 def epsilon(cur):
@@ -57,7 +58,7 @@ def train(env_name='PongNoFrameskip-v4', learning_rate=3e-4, gamma=0.99, memory_
         if frame_num % DQNAgent.reset_network_interval == 0:
             DQNAgent.reset()
 
-        if frame_num % print_interval == 0:
+        if frame_num % print_interval == 0 and showlog:
             cur_reward = -22
             if len(Reward) > 0:
                 cur_reward = np.mean(Reward[-10:])
@@ -90,11 +91,13 @@ if __name__ == '__main__':
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     parser.add_argument("--memory_size", type=int, default=100000, help="Size of the replay buffer")
     parser.add_argument("--total_frame", type=int, default=5000000, help="Total number of frames to train")
-    parser.add_argument("--eps-max", type=float, default=1, help="Max epsilon value")
-    parser.add_argument("--eps-min", type=float, default=0.02, help="Min epsilon value")
+    parser.add_argument("--eps_max", type=float, default=1, help="Max epsilon value")
+    parser.add_argument("--eps_min", type=float, default=0.02, help="Min epsilon value")
+    parser.add_argument("--show_log", type=bool, default=False, help="Show log")
     args = parser.parse_args()
     epsilon_begin = args.eps_max
     epsilon_end = args.eps_min
+    showlog = args.show_log
     train(env_name=args.env_name,
           learning_rate=args.lr,
           gamma=args.gamma,
