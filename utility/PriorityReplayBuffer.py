@@ -78,6 +78,7 @@ class SortedList:
             self.sort()
 
     def sort(self):
+        print('sort')
         self.heap.sort(key=lambda x: x.priority, reverse=True)
         while (len(self.heap) > self.max_size):
             self.pop()
