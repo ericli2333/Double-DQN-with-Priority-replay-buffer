@@ -91,7 +91,7 @@ class Agent:
         target = torch.where(dones.to(self.device), rewards, default).to(self.device).detach()
         return abs(target - q_values)
 
-    def calculate_loss(self, states, actions, rewards, next_states, dones):
+    def calculate_loss(self, states, actions, rewards, next_states, dones, weights):
         """
         Calculates the loss for a batch of experiences.
 
@@ -114,7 +114,9 @@ class Agent:
         target_output = target_output[range(states.shape[0]), q_predict_action]
         default = rewards + target_output
         target = torch.where(dones.to(self.device), rewards, default).to(self.device).detach()
-        return F.mse_loss(target, q_values)
+        losses = F.mse_loss(target, q_values, reduction='none')
+        weighted_losses = losses
+        return weighted_losses.mean()
 
     def reset(self):
         """
@@ -134,13 +136,14 @@ class Agent:
         """
         if batch_size < len(self.replay_buffer):
             index = self.replay_buffer.get_index(batch_size)
+            weights = self.replay_buffer.get_weight(index)
+            weights = torch.tensor(weights).to(self.device)
             states, actions, rewards, next_states, dones = self.replay_buffer.sample(batch_size, index)
             update_td_error = self.calculate_loss_no_grade(states, actions, rewards, next_states, dones)
             self.replay_buffer.update_priority(index, update_td_error)
-            loss = self.calculate_loss(states, actions, rewards, next_states, dones)
+            loss = self.calculate_loss(states, actions, rewards, next_states, dones, weights)
             self.optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=20, norm_type=2)
             self.optimizer.step()
             return loss.item()
-        return 0

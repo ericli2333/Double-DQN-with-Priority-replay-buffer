@@ -125,6 +125,10 @@ class PriorityReplayBuffer:
         weight = [1 / (i + 1) for i in range(len(self.q.heap))]
         return random.choices([i for i in range(len(self.q.heap))], weight, k=batch_size)
 
+    def get_weight(self, index):
+        weight = [1 / (i + 1) for i in range(len(self.q.heap))]
+        return [len(self.q.heap) * weight[i] for i in index]
+
     def sample(self, batch_size, index):
         """
         Samples a batch of experiences from the replay buffer.
