@@ -115,7 +115,7 @@ class Agent:
         default = rewards + target_output
         target = torch.where(dones.to(self.device), rewards, default).to(self.device).detach()
         losses = F.mse_loss(target, q_values, reduction='none')
-        weighted_losses = losses
+        weighted_losses = losses * weights
         return weighted_losses.mean()
 
     def sort(self):
