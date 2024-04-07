@@ -67,6 +67,31 @@ class MPriorityQueue:
             self._heapify_down(largest)
 
 
+class SortedList:
+    def __init__(self, max_size=10000):
+        self.heap = []
+        self.max_size = max_size
+
+    def push(self, item):
+        self.heap.append(item)
+        if len(self.heap) > 2 * self.max_size:
+            self.sort()
+
+    def sort(self):
+        self.heap.sort(key=lambda x: x.priority, reverse=True)
+        while (len(self.heap) > self.max_size):
+            self.pop()
+    
+    def pop(self):
+        if len(self.heap) == 0:
+            return None
+        return self.heap.pop()
+
+    def update_key(self, index: list, new_key:list):
+        for idx, key in zip(index, new_key):
+            self.heap[idx].priority = key
+
+
 class PriorityReplayBuffer:
     """
     A replay buffer class for storing and sampling experiences for reinforcement learning.
@@ -94,7 +119,7 @@ class PriorityReplayBuffer:
         self.cur = 0
         self.max_priority = 0
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.q = MPriorityQueue(max_size=size)
+        self.q = SortedList(max_size=size)
 
     def __len__(self):
         return len(self.buffer)
@@ -161,5 +186,5 @@ class PriorityReplayBuffer:
         self.max_priority = max(self.max_priority, td_error)
 
     def update_priority(self, index, td_error):
-        for idx, err in zip(index, td_error):
-            self._update_priority(idx, err)
+        self.q.update_key(index, td_error)
+        self.max_priority = max(self.max_priority, max(td_error))

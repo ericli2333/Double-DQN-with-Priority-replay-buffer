@@ -52,6 +52,8 @@ def train(env_name='PongNoFrameskip-v4', learning_rate=3e-4, gamma=0.99, memory_
         loss = 0
 
         if len(DQNAgent.replay_buffer) > replay_start_size:
+            if frame_num % 1000 == 0:
+                DQNAgent.sort()
             loss = DQNAgent.train(batch_size=batch_size)
             Loss.append(loss)
 
@@ -89,11 +91,11 @@ if __name__ == '__main__':
     parser.add_argument("--env_name", type=str, default='PongNoFrameskip-v4', help="Name of the environment")
     parser.add_argument("--gamma", type=float, default=0.99, help="Discount factor")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
-    parser.add_argument("--memory_size", type=int, default=100000, help="Size of the replay buffer")
+    parser.add_argument("--memory_size", type=int, default=10000, help="Size of the replay buffer")
     parser.add_argument("--total_frame", type=int, default=5000000, help="Total number of frames to train")
     parser.add_argument("--eps_max", type=float, default=1, help="Max epsilon value")
     parser.add_argument("--eps_min", type=float, default=0.02, help="Min epsilon value")
-    parser.add_argument("--show_log", type=bool, default=False, help="Show log")
+    parser.add_argument("--show_log", type=bool, default=True, help="Show log")
     args = parser.parse_args()
     epsilon_begin = args.eps_max
     epsilon_end = args.eps_min

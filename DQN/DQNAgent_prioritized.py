@@ -118,6 +118,9 @@ class Agent:
         weighted_losses = losses
         return weighted_losses.mean()
 
+    def sort(self):
+        self.replay_buffer.q.sort()
+
     def reset(self):
         """
         Resets the target network to match the Q-network.
