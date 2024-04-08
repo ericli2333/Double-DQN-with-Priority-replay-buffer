@@ -34,9 +34,10 @@ class Agent:
         learn(batch_size): Performs a single learning step using a batch of experiences.
     """
 
-    def __init__(self, in_channels, num_actions, reset_network_interval, lr, gamma, epsilon, replay_size):
+    def __init__(self, alpha, in_channels, num_actions, reset_network_interval, lr, gamma, epsilon, replay_size):
         self.num_actions = num_actions
-        self.replay_buffer = PriorityReplayBuffer(replay_size)
+        self.alpha = alpha
+        self.replay_buffer = PriorityReplayBuffer(alpha=alpha,size=replay_size)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(self.device)
         self.reset_network_interval = reset_network_interval

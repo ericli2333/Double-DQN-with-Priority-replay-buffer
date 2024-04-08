@@ -13,7 +13,7 @@ epsilon_begin = 1.0
 epsilon_end = 0.2
 epsilon_decay = 200000
 epsilon_min = 0.001
-alpha = 0.95
+alpha = 0.75
 replay_start_size = 10000
 update = 1000
 print_interval = 1000
@@ -26,7 +26,8 @@ def epsilon(cur):
 
 def train(env_name='PongNoFrameskip-v4', learning_rate=3e-4, gamma=0.99, memory_size=100000, total_frame=2000000):
     env = make_env(env_name)
-    DQNAgent = AG.Agent(in_channels=env.observation_space.shape[0], num_actions=env.action_space.n,
+    DQNAgent = AG.Agent( alpha=alpha,
+        in_channels=env.observation_space.shape[0], num_actions=env.action_space.n,
                         reset_network_interval=update,
                         lr=learning_rate, gamma=gamma, epsilon=epsilon_min, replay_size=memory_size)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

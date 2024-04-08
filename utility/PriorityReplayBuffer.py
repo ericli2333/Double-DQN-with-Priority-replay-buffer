@@ -114,7 +114,8 @@ class PriorityReplayBuffer:
 
     """
 
-    def __init__(self, size):
+    def __init__(self, size,alpha):
+        self.alpha = alpha
         self.size = size
         self.buffer = []
         self.cur = 0
@@ -148,12 +149,14 @@ class PriorityReplayBuffer:
         self.cur += 1
 
     def get_index(self, batch_size):
-        weight = [1 / (i + 1) for i in range(len(self.q.heap))]
-        return random.choices([i for i in range(len(self.q.heap))], weight, k=batch_size)
+        self.weight = [1 / ((i + 1) ** self.alpha) for i in range(len(self.q.heap))]
+        t = sum(self.weight)
+        self.weight = [w / t for w in self.weight]
+        return random.choices(range(len(self.q.heap)), self.weight, k=batch_size)
 
     def get_weight(self, index):
-        weight = [1 / (i + 1) for i in range(len(self.q.heap))]
-        return [len(self.q.heap) * weight[i] for i in index]
+        max_prob = max(self.weight)
+        return [ self.weight[i]  for i in index]
 
     def sample(self, batch_size, index):
         """
